@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/navigation_home">
+
+    <fragment
+        android:id="@+id/navigation_home"
+        android:name="com.similaritysoftwares.getoverme.ui.home.HomeFragment"
+        android:label="Home">
+        <action
+            android:id="@+id/action_HomeFragment_to_HowToPlayFragment"
+            app:destination="@id/navigation_how_to_play" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_leaderboard"
+        android:name="com.similaritysoftwares.getoverme.ui.leaderboard.LeaderboardFragment"
+        android:label="Leaderboard" />
+
+    <fragment
+        android:id="@+id/navigation_profile"
+        android:name="com.similaritysoftwares.getoverme.ui.profile.ProfileFragment"
+        android:label="Profile" />
+
+    <fragment
+        android:id="@+id/navigation_how_to_play"
+        android:name="com.similaritysoftwares.getoverme.ui.howtoplay.HowToPlayFragment"
+        android:label="How to Play" />
+
+</navigation> 

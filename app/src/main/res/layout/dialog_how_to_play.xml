@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/howToPlayTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="How to Play"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginTop="32dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/howToPlayTitle"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <TextView
+            android:id="@+id/howToPlayText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1. The game presents you with a series of challenges.\n\n2. Each challenge has a time limit.\n\n3. Complete the challenge before time runs out to win.\n\n4. Your streak increases with each win.\n\n5. If you lose, your streak resets to zero.\n\n6. Try to achieve the highest streak possible!\n\n7. You can quit anytime, but your streak will be lost.\n\n8. The 'Streak on the line!' option lets you continue with your current streak.\n\n9. Your highest streak is saved and displayed on the home screen.\n\n10. Compete with others on the leaderboard!"
+            android:textSize="16sp"
+            android:lineSpacingExtra="8dp" />
+
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout> 
