@@ -5,10 +5,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import com.similaritysoftwares.getoverme.databinding.DialogHowToPlayBinding
+import com.similaritysoftwares.getoverme.databinding.FragmentHowToPlayBinding
 
 class HowToPlayFragment : Fragment() {
-    private var _binding: DialogHowToPlayBinding? = null
+    private var _binding: FragmentHowToPlayBinding? = null
     private val binding get() = _binding!!
 
     override fun onCreateView(
@@ -16,7 +16,7 @@ class HowToPlayFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = DialogHowToPlayBinding.inflate(inflater, container, false)
+        _binding = FragmentHowToPlayBinding.inflate(inflater, container, false)
         return binding.root
     }
 

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,6 +17,10 @@ import com.similaritysoftwares.getoverme.databinding.FragmentHomeBinding
 import com.similaritysoftwares.getoverme.ui.game.GameActivity
 import com.similaritysoftwares.getoverme.ui.highscore.HighScoreActivity
 import com.similaritysoftwares.getoverme.data.UserPreferences
+import com.similaritysoftwares.getoverme.ui.howtoplay.HowToPlayActivity
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdListener
+import com.google.android.gms.ads.LoadAdError
 
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
@@ -56,12 +61,47 @@ class HomeFragment : Fragment() {
         }
 
         binding.howToPlayButton.setOnClickListener {
-            findNavController().navigate(R.id.action_HomeFragment_to_HowToPlayFragment)
+            showLoading()
+            startActivity(Intent(requireContext(), HowToPlayActivity::class.java))
         }
+
+        // Load AdMob banner ad 1
+        val adRequest = AdRequest.Builder().build()
+        binding.adView.loadAd(adRequest)
+
+        binding.adView.adListener = object : AdListener() {
+            override fun onAdLoaded() {
+                Log.d("AdMob", "Banner Ad 1 loaded successfully!")
+            }
+
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                Log.e("AdMob", "Banner Ad 1 failed to load: ${adError.message}")
+                // Attempt to reload the ad if it fails
+                binding.adView.postDelayed({ binding.adView.loadAd(AdRequest.Builder().build()) }, 5000)
+            }
+
+            override fun onAdOpened() {
+                Log.d("AdMob", "Banner Ad 1 opened!")
+            }
+
+            override fun onAdClicked() {
+                Log.d("AdMob", "Banner Ad 1 clicked!")
+            }
+
+            override fun onAdClosed() {
+                Log.d("AdMob", "Banner Ad 1 closed!")
+            }
+        }
+    }
+
+    override fun onPause() {
+        binding.adView.pause()
+        super.onPause()
     }
 
     override fun onResume() {
         super.onResume()
+        binding.adView.resume()
         // Update high score text when returning to the home screen
         updateHighScoreButtonText()
     }
@@ -84,6 +124,7 @@ class HomeFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        binding.adView.destroy()
         handler.removeCallbacksAndMessages(null)
         loadingOverlay?.let {
             (requireActivity().window.decorView as FrameLayout).removeView(it)

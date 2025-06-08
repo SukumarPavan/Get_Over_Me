@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,6 +19,9 @@ import coil.transform.CircleCropTransformation
 import com.similaritysoftwares.getoverme.R
 import com.similaritysoftwares.getoverme.databinding.FragmentProfileBinding
 import com.similaritysoftwares.getoverme.data.UserPreferences
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdListener
+import com.google.android.gms.ads.LoadAdError
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -76,6 +80,55 @@ class ProfileFragment : Fragment() {
         binding.changeProfilePicButton.setOnClickListener {
             openImagePicker()
         }
+
+        binding.privacyPolicyButton.setOnClickListener {
+            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://getoverme-privacypolicy.blogspot.com/2025/06/privacy-policy-for-getoverme-last.html"))
+            startActivity(browserIntent)
+        }
+
+        // Load AdMob banner ad 2
+        val adRequest = AdRequest.Builder().build()
+        binding.adView2.loadAd(adRequest)
+
+        binding.adView2.adListener = object : AdListener() {
+            override fun onAdLoaded() {
+                Log.d("AdMob", "Banner Ad 2 loaded successfully!")
+            }
+
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                Log.e("AdMob", "Banner Ad 2 failed to load: ${adError.message}")
+                // Attempt to reload the ad if it fails
+                binding.adView2.postDelayed({ binding.adView2.loadAd(AdRequest.Builder().build()) }, 5000)
+            }
+
+            override fun onAdOpened() {
+                Log.d("AdMob", "Banner Ad 2 opened!")
+            }
+
+            override fun onAdClicked() {
+                Log.d("AdMob", "Banner Ad 2 clicked!")
+            }
+
+            override fun onAdClosed() {
+                Log.d("AdMob", "Banner Ad 2 closed!")
+            }
+        }
+    }
+
+    override fun onPause() {
+        binding.adView2.pause()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        binding.adView2.resume()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        binding.adView2.destroy()
+        _binding = null
     }
 
     private fun loadProfileData() {
@@ -162,10 +215,5 @@ class ProfileFragment : Fragment() {
             }
         }
         return fileSize
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 } 

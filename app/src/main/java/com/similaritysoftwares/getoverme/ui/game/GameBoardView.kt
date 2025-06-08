@@ -63,10 +63,10 @@ class GameBoardView @JvmOverloads constructor(
         isGameWon = false
          // Create orange balls (even faster)
         repeat(7) { // Increased number of balls slightly
-            orangeBalls.add(createBall(Color.rgb(255, 140, 0), 50f)) // Keeping user's last speed
+            orangeBalls.add(createBall(Color.rgb(255, 140, 0), 60f)) // Increased speed
         }
         // Create blue balls (even faster for interaction)
-        repeat(10) { // Increased number of balls
+        repeat(7) { // Decreased number of blue balls
             blueBalls.add(createBall(Color.BLUE, 30f)) // Keeping user's last speed
         }
     }
@@ -85,7 +85,7 @@ class GameBoardView @JvmOverloads constructor(
     }
 
     private fun createBall(color: Int, speed: Float): Ball {
-        val radius = 25f // Slightly larger balls
+        val radius = 40f // Increased ball radius
         val maxAttempts = 100 // Prevent infinite loops if placement is difficult
         var attempts = 0
         while (attempts < maxAttempts) {
@@ -206,60 +206,95 @@ class GameBoardView @JvmOverloads constructor(
     }
 
     private fun updateBalls(balls: List<Ball>, deltaTime: Float) {
-        val updatedBalls = mutableListOf<Ball>()
-        updatedBalls.addAll(balls)
-
-        for (i in updatedBalls.indices) {
-            val ball = updatedBalls[i]
-
-            // Update position
+        balls.forEach { ball ->
             ball.x += ball.speedX * deltaTime
             ball.y += ball.speedY * deltaTime
 
-            // Wall collision
-            if (ball.x - ball.radius < 0) {
+            // Boundary collision
+            if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
                 ball.speedX *= -1
-                ball.x = ball.radius
-            } else if (ball.x + ball.radius > width) {
-                ball.speedX *= -1
-                ball.x = width - ball.radius
+                if (ball.color == Color.rgb(255, 140, 0)) {
+                    normalizeSpeed(ball, 100f) // Maintain constant speed for orange balls
+                }
+                ball.x = if (ball.x - ball.radius < 0) ball.radius else (width - ball.radius)
             }
-            if (ball.y - ball.radius < 0) {
+            if (ball.y - ball.radius < 0 || ball.y + ball.radius > height) {
                 ball.speedY *= -1
-                ball.y = ball.radius
-            } else if (ball.y + ball.radius > height) {
-                ball.speedY *= -1
-                ball.y = height - ball.radius
+                if (ball.color == Color.rgb(255, 140, 0)) {
+                    normalizeSpeed(ball, 100f) // Maintain constant speed for orange balls
+                }
+                ball.y = if (ball.y - ball.radius < 0) ball.radius else (height - ball.radius)
             }
+        }
 
-            // Ball collision with other *moving* balls (basic response)
-            for (j in i + 1 until updatedBalls.size) {
-                val otherBall = updatedBalls[j]
-                 // Only handle collision between two *non-held* balls here
-                if (heldBall != ball && heldBall != otherBall && isColliding(ball, otherBall)) {
-                    // Simple collision response (exchange velocities)
-                    val tempSpeedX = ball.speedX
-                    val tempSpeedY = ball.speedY
-                    ball.speedX = otherBall.speedX
-                    ball.speedY = otherBall.speedY
-                    otherBall.speedX = tempSpeedX
-                    otherBall.speedY = tempSpeedY
-
-                    // Separate overlapping balls
-                    val dx = otherBall.x - ball.x
-                    val dy = otherBall.y - ball.y
-                    val distance = sqrt(dx * dx + dy * dy)
-                    val overlap = (ball.radius + otherBall.radius - distance) / 2
-                    val angle = atan2(dy, dx)
-                    ball.x -= (cos(angle) * overlap).toFloat()
-                    ball.y -= (sin(angle) * overlap).toFloat()
-                    otherBall.x += (cos(angle) * overlap).toFloat()
-                    otherBall.y += (sin(angle) * overlap).toFloat()
-                 }
+        // Ball-to-ball collision
+        for (i in balls.indices) {
+            for (j in i + 1 until balls.size) {
+                val ball1 = balls[i]
+                val ball2 = balls[j]
+                if (isColliding(ball1, ball2)) {
+                    handleCollision(ball1, ball2)
+                }
             }
         }
     }
 
+    private fun handleCollision(b1: Ball, b2: Ball) {
+        // Calculate velocities along the line of impact
+        val dx = b2.x - b1.x
+        val dy = b2.y - b1.y
+        val distance = sqrt(dx * dx + dy * dy)
+
+        // Normalize collision vector
+        val nx = dx / distance
+        val ny = dy / distance
+
+        // Tangent vector
+        val tx = -ny
+        val ty = nx
+
+        // Dot product of velocity and normal/tangent vectors
+        val dpTan1 = b1.speedX * tx + b1.speedY * ty
+        val dpNor1 = b1.speedX * nx + b1.speedY * ny
+        val dpTan2 = b2.speedX * tx + b2.speedY * ty
+        val dpNor2 = b2.speedX * nx + b2.speedY * ny
+
+        // Conservation of momentum for normal component (assuming equal mass)
+        val m1 = 1f // Assuming equal mass for simplicity
+        val m2 = 1f
+        val p = 2 * (dpNor1 - dpNor2) / (m1 + m2)
+
+        // Update velocities
+        b1.speedX = dpTan1 * tx + (dpNor1 - p) * nx
+        b1.speedY = dpTan1 * ty + (dpNor1 - p) * ny
+        b2.speedX = dpTan2 * tx + (dpNor2 + p) * nx
+        b2.speedY = dpTan2 * ty + (dpNor2 + p) * ny
+
+        // Correct position to prevent sticking
+        val overlap = b1.radius + b2.radius - distance
+        val correction = overlap / 2.0f
+
+        b1.x -= correction * nx
+        b1.y -= correction * ny
+        b2.x += correction * nx
+        b2.y += correction * ny
+
+        // Normalize speed for orange balls after collision
+        if (b1.color == Color.rgb(255, 140, 0)) {
+            normalizeSpeed(b1, 100f)
+        }
+        if (b2.color == Color.rgb(255, 140, 0)) {
+            normalizeSpeed(b2, 100f)
+        }
+    }
+
+    private fun normalizeSpeed(ball: Ball, targetSpeed: Float) {
+        val currentSpeed = sqrt(ball.speedX * ball.speedX + ball.speedY * ball.speedY)
+        if (currentSpeed > 0) {
+            ball.speedX = (ball.speedX / currentSpeed) * targetSpeed
+            ball.speedY = (ball.speedY / currentSpeed) * targetSpeed
+        }
+    }
 
     private fun drawBalls(canvas: Canvas, balls: List<Ball>) {
         balls.forEach { ball ->

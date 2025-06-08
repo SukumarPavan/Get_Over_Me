@@ -6,7 +6,7 @@
     android:padding="16dp">
 
     <TextView
-        android:id="@+id/titleText"
+        android:id="@+id/howToPlayTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="How to Play"
@@ -21,13 +21,14 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@id/titleText"
+        app:layout_constraintTop_toBottomOf="@id/howToPlayTitle"
         app:layout_constraintBottom_toBottomOf="parent">
 
         <TextView
+            android:id="@+id/howToPlayText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="1. The game presents you with a series of challenges.\n\n2. Each challenge has a time limit.\n\n3. Complete the challenge before time runs out to win.\n\n4. Your streak increases with each win.\n\n5. If you lose, your streak resets to zero.\n\n6. Try to achieve the highest streak possible!\n\n7. You can quit anytime, but your streak will be lost.\n\n8. The 'Streak on the line!' option lets you continue with your current streak.\n\n9. Your highest streak is saved and displayed on the home screen.\n\n10. Compete with others on the leaderboard!"
+            android:text="1. Touch and drag a blue ball to collect other blue balls by touching them.\n\n2. Avoid touching the orange balls at all costs!\n\n3. Keep the blue balls away from the orange balls.\n\n4. Your streak increases with each successful move.\n\n5. If you touch an orange ball, your streak resets to zero.\n\n6. Try to achieve the highest streak possible!\n\n7. You can quit anytime, but your streak will be lost.\n\n8. The 'Streak on the line!' option lets you continue with your current streak.\n\n9. Your highest streak is saved and displayed on the home screen.\n\n10. Compete with others on the leaderboard!"
             android:textSize="16sp"
             android:lineSpacingExtra="8dp" />
 
