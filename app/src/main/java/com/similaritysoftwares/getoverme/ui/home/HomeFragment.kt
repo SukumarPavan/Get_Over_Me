@@ -21,13 +21,19 @@ import com.similaritysoftwares.getoverme.ui.howtoplay.HowToPlayActivity
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
-    private val binding get() = _binding!!
+    private val binding get() = _binding ?: throw IllegalStateException("Binding is null. Fragment view has been destroyed.")
     private var loadingOverlay: View? = null
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var userPreferences: UserPreferences
+    private var interstitialAd: InterstitialAd? = null
+    private var isLoadingAd = false
+    private var shouldShowAdOnResume = false
+    private val adUnitId = "ca-app-pub-6441750745135526/8612909574" // Your Home Interstitial Ad Unit ID
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -52,17 +58,29 @@ class HomeFragment : Fragment() {
 
         binding.newGameButton.setOnClickListener {
             showLoading()
-            startActivity(Intent(requireContext(), GameActivity::class.java))
+            handler.postDelayed({
+                showAdThen {
+                    startActivity(Intent(requireContext(), GameActivity::class.java))
+                }
+            }, 500) // Show loading for 0.5 seconds
         }
 
         binding.highScoreButton.setOnClickListener {
             showLoading()
-            startActivity(Intent(requireContext(), HighScoreActivity::class.java))
+            handler.postDelayed({
+                showAdThen {
+                    startActivity(Intent(requireContext(), HighScoreActivity::class.java))
+                }
+            }, 500) // Show loading for 0.5 seconds
         }
 
         binding.howToPlayButton.setOnClickListener {
             showLoading()
-            startActivity(Intent(requireContext(), HowToPlayActivity::class.java))
+            handler.postDelayed({
+                showAdThen {
+                    startActivity(Intent(requireContext(), HowToPlayActivity::class.java))
+                }
+            }, 500) // Show loading for 0.5 seconds
         }
 
         // Load AdMob banner ad 1
@@ -77,7 +95,9 @@ class HomeFragment : Fragment() {
             override fun onAdFailedToLoad(adError: LoadAdError) {
                 Log.e("AdMob", "Banner Ad 1 failed to load: ${adError.message}")
                 // Attempt to reload the ad if it fails
-                binding.adView.postDelayed({ binding.adView.loadAd(AdRequest.Builder().build()) }, 5000)
+                _binding?.adView?.postDelayed({ 
+                    _binding?.adView?.loadAd(AdRequest.Builder().build()) 
+                }, 5000)
             }
 
             override fun onAdOpened() {
@@ -92,23 +112,58 @@ class HomeFragment : Fragment() {
                 Log.d("AdMob", "Banner Ad 1 closed!")
             }
         }
+
+        loadInterstitialAd()
     }
 
     override fun onPause() {
-        binding.adView.pause()
         super.onPause()
+        _binding?.adView?.pause()
+        // Clean up interstitial ad resources
+        interstitialAd?.fullScreenContentCallback = null
     }
 
     override fun onResume() {
         super.onResume()
-        binding.adView.resume()
+        _binding?.adView?.resume()
         // Update high score text when returning to the home screen
         updateHighScoreButtonText()
+        // Show interstitial ad if loaded, and always try to load the next one
+        if (interstitialAd != null) {
+            interstitialAd?.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    interstitialAd = null
+                    loadInterstitialAd()
+                }
+                override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                    interstitialAd = null
+                    loadInterstitialAd()
+                }
+            }
+            try {
+                interstitialAd?.show(requireActivity())
+            } catch (e: Exception) {
+                interstitialAd = null
+                loadInterstitialAd()
+            }
+        } else if (!isLoadingAd) {
+            loadInterstitialAd()
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.adView?.destroy()
+        _binding = null
+        loadingOverlay?.let {
+            (requireActivity().window.decorView as? FrameLayout)?.removeView(it)
+        }
+        loadingOverlay = null
     }
 
     private fun updateHighScoreButtonText() {
         val highestStreak = userPreferences.getHighestStreak()
-        binding.highScoreButton.text = "High Score: $highestStreak 🔥"
+        _binding?.highScoreButton?.text = "High Score: $highestStreak 🔥"
     }
 
     private fun showLoading() {
@@ -122,13 +177,48 @@ class HomeFragment : Fragment() {
         loadingOverlay?.visibility = View.GONE
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        binding.adView.destroy()
-        handler.removeCallbacksAndMessages(null)
-        loadingOverlay?.let {
-            (requireActivity().window.decorView as FrameLayout).removeView(it)
+    private fun loadInterstitialAd() {
+        if (isLoadingAd) return
+        isLoadingAd = true
+        val adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(requireContext(), adUnitId, adRequest, object : InterstitialAdLoadCallback() {
+            override fun onAdLoaded(ad: InterstitialAd) {
+                interstitialAd = ad
+                isLoadingAd = false
+            }
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                interstitialAd = null
+                isLoadingAd = false
+                // Retry after a delay to avoid spamming requests
+                handler.postDelayed({ loadInterstitialAd() }, 10000)
+            }
+        })
+    }
+
+    // Helper to show ad and then run an action
+    private fun showAdThen(action: () -> Unit) {
+        if (interstitialAd != null) {
+            interstitialAd?.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    interstitialAd = null
+                    loadInterstitialAd()
+                    action()
+                }
+                override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                    interstitialAd = null
+                    loadInterstitialAd()
+                    action()
+                }
+            }
+            try {
+                interstitialAd?.show(requireActivity())
+            } catch (e: Exception) {
+                interstitialAd = null
+                loadInterstitialAd()
+                action()
+            }
+        } else {
+            action()
         }
-        _binding = null
     }
 } 

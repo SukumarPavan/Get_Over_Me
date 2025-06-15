@@ -30,9 +30,15 @@ class MainActivity : AppCompatActivity() {
         // Set up bottom navigation item selection listener
         bottomNavigationView.setOnNavigationItemSelectedListener {
             when (it.itemId) {
-                R.id.navigation_home -> replaceFragment(HomeFragment())
-                R.id.navigation_leaderboard -> replaceFragment(LeaderboardFragment())
-                R.id.navigation_profile -> replaceFragment(ProfileFragment())
+                R.id.navigation_home -> {
+                    replaceFragment(HomeFragment())
+                }
+                R.id.navigation_leaderboard -> {
+                    replaceFragment(LeaderboardFragment())
+                }
+                R.id.navigation_profile -> {
+                    replaceFragment(ProfileFragment())
+                }
                 else -> false
             }
             true

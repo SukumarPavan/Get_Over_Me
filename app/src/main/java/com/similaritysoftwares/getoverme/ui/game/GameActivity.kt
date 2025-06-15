@@ -7,6 +7,7 @@ import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.Window
@@ -21,6 +22,10 @@ import com.similaritysoftwares.getoverme.MainActivity
 import com.similaritysoftwares.getoverme.R // Import the generated R class
 import com.similaritysoftwares.getoverme.databinding.ActivityGameBinding
 import com.similaritysoftwares.getoverme.data.UserPreferences
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 
 class GameActivity : AppCompatActivity(), GameBoardView.GameListener {
     private lateinit var binding: ActivityGameBinding
@@ -28,6 +33,9 @@ class GameActivity : AppCompatActivity(), GameBoardView.GameListener {
     private var loadingOverlay: View? = null
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var userPreferences: UserPreferences
+    private var interstitialAd: InterstitialAd? = null
+    private var isLoadingAd = false
+    private val interstitialAdUnitId = "ca-app-pub-6441750745135526/3891065936" // Your Game Completion Interstitial Ad Unit ID
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +59,73 @@ class GameActivity : AppCompatActivity(), GameBoardView.GameListener {
         loadingOverlay = LayoutInflater.from(this).inflate(R.layout.loading_overlay, null)
         (window.decorView as FrameLayout).addView(loadingOverlay)
         loadingOverlay?.visibility = View.GONE
+
+        // Load interstitial ad
+        loadInterstitialAd()
+    }
+
+    private fun loadInterstitialAd() {
+        if (isLoadingAd) return
+        isLoadingAd = true
+        val adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(this, interstitialAdUnitId, adRequest, object : InterstitialAdLoadCallback() {
+            override fun onAdLoaded(ad: InterstitialAd) {
+                interstitialAd = ad
+                isLoadingAd = false
+            }
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                Log.e("AdMob", "Game Interstitial Ad Load Failed: ${adError.message}")
+                interstitialAd = null
+                isLoadingAd = false
+                // Retry after a delay to avoid spamming requests
+                handler.postDelayed({ loadInterstitialAd() }, 10000)
+            }
+        })
+    }
+
+    private fun showInterstitialAdThenFinish() {
+        if (interstitialAd != null) {
+            interstitialAd?.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    interstitialAd = null
+                    loadInterstitialAd() // Load the next ad
+                    finish()
+                }
+                override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                    interstitialAd = null
+                    loadInterstitialAd() // Load the next ad
+                    finish()
+                }
+            }
+            try {
+                interstitialAd?.show(this)
+            } catch (e: Exception) {
+                Log.e("AdMob", "Game Interstitial Ad Show Exception: ${e.message}")
+                interstitialAd = null
+                loadInterstitialAd()
+                finish()
+            }
+        } else {
+            finish()
+        }
+    }
+
+    override fun onGameOver() {
+        // Save current streak
+        userPreferences.setCurrentStreak(winStreak)
+        showLoading()
+        handler.postDelayed({
+            showInterstitialAdThenFinish()
+        }, 500) // Show loading for 0.5 seconds before showing ad or finishing
+    }
+
+    override fun onGameWon() {
+        // Save current streak when game is won (it will be incremented in showGameResultDialog)
+        userPreferences.setCurrentStreak(winStreak + 1)
+        showLoading()
+        handler.postDelayed({
+            showGameResultDialog(true)
+        }, 500) // Show loading for 0.5 seconds before showing ad or finishing
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -109,7 +184,6 @@ class GameActivity : AppCompatActivity(), GameBoardView.GameListener {
 
         // Set click listeners
         newGameButton.setOnClickListener { v ->
-            // Apply wiggle animation on click
             v.startAnimation(AnimationUtils.loadAnimation(this, R.anim.wiggle_animation))
 
             // Delay dismissal slightly to allow animation to start
@@ -129,7 +203,6 @@ class GameActivity : AppCompatActivity(), GameBoardView.GameListener {
         }
 
         homeButton.setOnClickListener { v ->
-            // Apply wiggle animation on click
             v.startAnimation(AnimationUtils.loadAnimation(this, R.anim.wiggle_animation))
 
             // Delay dismissal slightly to allow animation to start
@@ -157,18 +230,6 @@ class GameActivity : AppCompatActivity(), GameBoardView.GameListener {
         dialog.show()
     }
 
-    override fun onGameOver() {
-        // Save current streak (which is 0) when game is over
-        userPreferences.setCurrentStreak(winStreak)
-        showGameResultDialog(false) // Show game over dialog
-    }
-
-    override fun onGameWon() {
-        // Save current streak when game is won (it will be incremented in showGameResultDialog)
-        userPreferences.setCurrentStreak(winStreak + 1)
-        showGameResultDialog(true) // Show game won dialog
-    }
-
     override fun onPause() {
         super.onPause()
         // Save the current streak when the activity is paused
@@ -179,7 +240,8 @@ class GameActivity : AppCompatActivity(), GameBoardView.GameListener {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null)
         loadingOverlay?.let {
-            (window.decorView as FrameLayout).removeView(it)
+            (window.decorView as? FrameLayout)?.removeView(it)
         }
+        loadingOverlay = null
     }
 } 

@@ -2,9 +2,13 @@ package com.similaritysoftwares.getoverme.ui.leaderboard
 
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
@@ -12,13 +16,24 @@ import com.bumptech.glide.request.RequestOptions
 import com.similaritysoftwares.getoverme.R
 import com.similaritysoftwares.getoverme.databinding.FragmentLeaderboardBinding
 import com.similaritysoftwares.getoverme.data.UserPreferences
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdListener
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 
 class LeaderboardFragment : Fragment() {
     private var _binding: FragmentLeaderboardBinding? = null
-    private val binding get() = _binding!!
+    private val binding get() = _binding ?: throw IllegalStateException("Binding is null. Fragment view has been destroyed.")
     private lateinit var leaderboardAdapter: LeaderboardAdapter
     private lateinit var userPreferences: UserPreferences
     private val requestOptions = RequestOptions().placeholder(R.drawable.default_profile).error(R.drawable.default_profile)
+    private var interstitialAd: InterstitialAd? = null
+    private var isLoadingAd = false
+    private val interstitialAdUnitId = "ca-app-pub-6441750745135526/8804481265" // Your Leaderboard Interstitial Ad Unit ID
+    private val bannerAdUnitId = "ca-app-pub-6441750745135526/4755740836" // Your Leaderboard Banner Ad Unit ID
+    private var loadingOverlay: View? = null
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -34,6 +49,95 @@ class LeaderboardFragment : Fragment() {
         userPreferences = UserPreferences(requireContext())
         setupLeaderboard()
         loadLeaderboardData()
+        loadInterstitialAd()
+
+        // Initialize loading overlay
+        loadingOverlay = LayoutInflater.from(requireContext()).inflate(R.layout.loading_overlay, null)
+        (requireActivity().window.decorView as FrameLayout).addView(loadingOverlay)
+        loadingOverlay?.visibility = View.GONE
+
+        // Load banner ad
+        val adRequest = AdRequest.Builder().build()
+        _binding?.adView?.adUnitId = bannerAdUnitId
+        _binding?.adView?.loadAd(adRequest)
+
+        _binding?.adView?.adListener = object : AdListener() {
+            override fun onAdLoaded() {
+                Log.d("AdMob", "Banner Ad loaded successfully!")
+            }
+
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                Log.e("AdMob", "Banner Ad failed to load: ${adError.message}")
+                // Attempt to reload the ad if it fails
+                _binding?.adView?.postDelayed({ 
+                    _binding?.adView?.loadAd(AdRequest.Builder().build()) 
+                }, 5000)
+            }
+        }
+    }
+
+    private fun loadInterstitialAd() {
+        if (isLoadingAd) return
+        isLoadingAd = true
+        val adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(requireContext(), interstitialAdUnitId, adRequest, object : InterstitialAdLoadCallback() {
+            override fun onAdLoaded(ad: InterstitialAd) {
+                interstitialAd = ad
+                isLoadingAd = false
+            }
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                interstitialAd = null
+                isLoadingAd = false
+                // Retry after a delay to avoid spamming requests
+                Handler(Looper.getMainLooper()).postDelayed({ loadInterstitialAd() }, 10000)
+            }
+        })
+    }
+
+    private fun showInterstitialAd() {
+        if (interstitialAd != null) {
+            interstitialAd?.fullScreenContentCallback = object : com.google.android.gms.ads.FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    interstitialAd = null
+                    loadInterstitialAd()
+                }
+                override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                    interstitialAd = null
+                    loadInterstitialAd()
+                }
+            }
+            try {
+                interstitialAd?.show(requireActivity())
+            } catch (e: Exception) {
+                interstitialAd = null
+                loadInterstitialAd()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        _binding?.adView?.resume()
+        // Show interstitial ad when returning to the leaderboard
+        showLoading()
+        handler.postDelayed({ 
+            showInterstitialAd()
+        }, 500) // Show loading for 0.5 seconds
+    }
+
+    override fun onPause() {
+        super.onPause()
+        _binding?.adView?.pause()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding?.adView?.destroy()
+        _binding = null
+        loadingOverlay?.let {
+            (requireActivity().window.decorView as? FrameLayout)?.removeView(it)
+        }
+        loadingOverlay = null
     }
 
     private fun setupLeaderboard() {
@@ -115,9 +219,15 @@ class LeaderboardFragment : Fragment() {
         // Note: Profile image for the user rank section is handled directly in loadLeaderboardData
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
+    private fun showLoading() {
+        loadingOverlay?.visibility = View.VISIBLE
+        handler.postDelayed({
+            hideLoading()
+        }, 500) // Hide after 0.5 seconds
+    }
+
+    private fun hideLoading() {
+        loadingOverlay?.visibility = View.GONE
     }
 }
 

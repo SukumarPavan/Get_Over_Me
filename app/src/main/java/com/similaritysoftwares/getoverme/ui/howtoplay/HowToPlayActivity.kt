@@ -14,7 +14,7 @@ class HowToPlayActivity : AppCompatActivity() {
 
         // Enable back button in action bar
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "How to Play"
+        supportActionBar?.title = "How To Play"
     }
 
     override fun onSupportNavigateUp(): Boolean {
